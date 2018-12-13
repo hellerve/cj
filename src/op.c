@@ -5,20 +5,25 @@
 
 typedef struct {
   uint8_t nargs;
-  uint8_t code;
+  uint8_t len;
+  uint8_t code[8];
   const char* name;
 } cj_instruction;
 
-#define CJ_OP(NAME, N, CODE) \
+#define CJ_OP(NAME, N, L, ...) \
   static const cj_instruction NAME = (cj_instruction){.name = "NAME",\
                                                       .nargs = N,\
-                                                      .code = CODE};
+                                                      .len = L,\
+                                                      .code = {__VA_ARGS__}};
 
 // of course its not that simple
-CJ_OP(inc, 1, 0)
-CJ_OP(mov, 2, 0)
-CJ_OP(nop, 0, 0x90)
-CJ_OP(ret, 0, 0xc3)
+CJ_OP(inc, 1, 1, 0)
+CJ_OP(mov, 2, 1, 0)
+CJ_OP(nop, 0, 1, 0x90)
+CJ_OP(ret, 0, 1, 0xc3)
+CJ_OP(aad, 0, 2, 0xd5, 0x0a)
+CJ_OP(aam, 0, 2, 0xd4, 0x0a)
+CJ_OP(aaf, 0, 1, 0x3f)
 
 #undef CJ_OP
 
@@ -29,7 +34,7 @@ void cj_emit(cj_ctx* ctx, cj_instruction inst, uint64_t len, ...) {
   va_start(vl, len);
   for (uint8_t i = 0; i < len; i++) ops[i] = va_arg(vl, cj_operand);
   va_end(vl);
-  cj_add_u8(ctx, inst.code);
+  cj_add_bytes(ctx, inst.code, inst.len);
 }
 
 void cj_inc(cj_ctx* ctx, cj_operand op) {
