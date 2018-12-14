@@ -23,12 +23,20 @@ typedef struct {
 
 void cj_emit(cj_ctx* ctx, cj_instruction inst, uint64_t len, ...) {
   assert(len == inst.nargs);
-  cj_operand ops[len];
+  if (!len) return cj_add_bytes(ctx, inst.code, inst.len);
+
+  const char* ops[len];
+  const char* constant = "__constant__";
   va_list vl;
   va_start(vl, len);
-  for (uint8_t i = 0; i < len; i++) ops[i] = va_arg(vl, cj_operand);
+  for (uint8_t i = 0; i < len; i++) {
+    cj_operand op = va_arg(vl, cj_operand);
+    if (op.type == CJ_REGISTER) ops[i] = op.reg;
+    else if (op.type == CJ_CONSTANT) ops[i] = constant;
+  }
   va_end(vl);
-  cj_add_bytes(ctx, inst.code, inst.len);
+
+  // TODO: what now?
 }
 
 #define CJ_OP(id, n, l, ...) \
@@ -44,7 +52,7 @@ void cj_emit(cj_ctx* ctx, cj_instruction inst, uint64_t len, ...) {
 
 // of course its not that simple
 CJ_OP(inc, 1, 1, 0)
-CJ_OP_META(inc, 1, (cj_variant){.operands={"r14"}, .codes={{0}}});
+//CJ_OP_META(inc, 1, (cj_variant){.operands={"r14"}, .codes={{0}}});
 CJ_OP(mov, 2, 1, 0)
 CJ_OP(nop, 0, 1, 0x90)
 CJ_OP(ret, 0, 1, 0xc3)
@@ -52,23 +60,42 @@ CJ_OP(aad, 0, 2, 0xd5, 0x0a)
 CJ_OP(aam, 0, 2, 0xd4, 0x0a)
 CJ_OP(aaf, 0, 1, 0x3f)
 
-#define EMIT(name, n, ...) cj_emit(ctx, name, n, ##__VA_ARGS__)
+#define NARGS_SEQ(_1,_2,N,...) N
+#define NARGS(...) NARGS_SEQ(__VA_ARGS__, 2, 1)
 
-void cj_inc(cj_ctx* ctx, cj_operand op) {
-  EMIT(inc, 1, op);
-}
+#define PRIMITIVE_CAT(x, y) x ## y
+#define CAT(x, y) PRIMITIVE_CAT(x, y)
 
-void cj_mov(cj_ctx* ctx, cj_operand op1, cj_operand op2) {
-  EMIT(mov, 2, op1, op2);
-}
+#define APPLY(macro, ...) CAT(APPLY_, NARGS(__VA_ARGS__))(macro, __VA_ARGS__)
+#define APPLY_1(m, x1) m(x1)
+#define APPLY_2(m, x1, x2) m(x1), m(x2)
 
-void cj_ret(cj_ctx* ctx) {
-  EMIT(ret, 0);
-}
+#define TIPIFY(x) cj_operand x
 
-void cj_nop(cj_ctx* ctx) {
-  EMIT(nop, 0);
-}
+#define EMIT0(name, n) \
+  void cj_##name(cj_ctx* ctx) {\
+    cj_emit(ctx, name, n);\
+  }
+
+#define EMIT(name, n, ...) \
+  void cj_##name(cj_ctx* ctx, APPLY(TIPIFY, __VA_ARGS__)) {\
+    cj_emit(ctx, name, n, __VA_ARGS__);\
+  }
+
+EMIT(inc, 1, op);
+EMIT(mov, 2, op1, op2);
+EMIT0(ret, 0);
+EMIT0(nop, 0);
+
 #undef EMIT
+#undef EMIT0
 #undef CJ_OP
-
+#undef CJ_OP_META
+#undef TYPIFY
+#undef APPLY
+#undef APPLY_1
+#undef APPLY_2
+#undef CAT
+#undef PRIMITIVE_CAT
+#undef NARGS
+#undef NARGS_SEQ
