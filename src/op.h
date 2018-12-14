@@ -2,8 +2,17 @@
 
 #include "ctx.h"
 
+enum {
+  CJ_REGISTER,
+  CJ_CONSTANT
+};
+
 typedef struct {
-  const char* name;
+  uint8_t type;
+  union {
+    uint64_t constant;
+    const char* reg;
+  };
 } cj_operand;
 
 void cj_inc(cj_ctx*, cj_operand);
