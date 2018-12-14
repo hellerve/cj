@@ -12,6 +12,9 @@ all:
 	mkdir -p $(BUILDDIR)
 	$(CC) $(SOURCES) -o $(BUILDDIR)$(TARGET) $(CFLAGS) $(SHARED)
 
+cg:
+	node codegen/generator.js
+
 dev:
 	mkdir -p $(BUILDDIR)
 	$(CC) $(SOURCES) -o $(BUILDDIR)$(TARGET) $(CFLAGS) $(DEVFLAGS) $(SHARED)
