@@ -2,7 +2,7 @@
 
 **Nothing much to show for yet.**
 
-A small JIT framework written in C.
+A small JIT framework written in C, targeting x86.
 
 This works already (`ret` and `nop`are in fact the only instructions that work
 as of yet):
