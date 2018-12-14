@@ -1,30 +1,31 @@
 #include <assert.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "op.h"
 
 typedef struct {
-  uint8_t nargs;
-  uint8_t len;
-  uint8_t code[8];
-  const char* name;
-} cj_instruction;
-
-typedef struct {
+  int ops_len;
   const char* operands[8];
-  uint64_t codes[8][8];
+  int codes_len[8];
+  uint8_t codes[8][8];
 } cj_variant;
 
 typedef struct {
   uint8_t variantc;
   const char* name;
   cj_variant variants[32];
-} cj_instruction_meta;
+} cj_instruction;
+
+int op_cmp(uint64_t al, const char** actual, uint64_t el, const char** exp) {
+  if (al != el) return 0;
+
+  for (uint64_t i = 0; i < al; i++) if (strcmp(actual[i], exp[i])) return 0;
+
+  return 1;
+}
 
 void cj_emit(cj_ctx* ctx, cj_instruction inst, uint64_t len, ...) {
-  assert(len == inst.nargs);
-  if (!len) return cj_add_bytes(ctx, inst.code, inst.len);
-
   const char* ops[len];
   const char* constant = "__constant__";
   va_list vl;
@@ -36,29 +37,30 @@ void cj_emit(cj_ctx* ctx, cj_instruction inst, uint64_t len, ...) {
   }
   va_end(vl);
 
+  if (inst.variantc == 1) {
+    cj_variant var = inst.variants[0];
+    if (op_cmp(len, ops, var.ops_len, var.operands)) {
+      cj_add_bytes(ctx, var.codes[0], var.codes_len[0]);
+      return;
+    }
+    // TODO: how to error
+  }
   // TODO: what now?
 }
 
-#define CJ_OP(id, n, l, ...) \
-  static const cj_instruction id = (cj_instruction){.name = "id",\
-                                                      .nargs = n,\
-                                                      .len = l,\
-                                                      .code = {__VA_ARGS__}};
-#define CJ_OP_META(id, n, ...)\
-  static const cj_instruction_meta id##_meta = \
-    (cj_instruction_meta){.name = "id",\
-                          .variantc = n,\
-                          .variants = {__VA_ARGS__}};
+#define C ,
+#define CJ_VARIANT(ol, ops, cl, cs) \
+  (cj_variant){.ops_len=ol, .operands=ops, .codes_len=cl, .codes=cs}
+#define CJ_OP(id, n, ...)\
+  static const cj_instruction id = \
+    (cj_instruction){.name = "id",\
+                     .variantc = n,\
+                     .variants = {__VA_ARGS__}};
 
 // of course its not that simple
-CJ_OP(inc, 1, 1, 0)
-//CJ_OP_META(inc, 1, (cj_variant){.operands={"r14"}, .codes={{0}}});
-CJ_OP(mov, 2, 1, 0)
-CJ_OP(nop, 0, 1, 0x90)
-CJ_OP(ret, 0, 1, 0xc3)
-CJ_OP(aad, 0, 2, 0xd5, 0x0a)
-CJ_OP(aam, 0, 2, 0xd4, 0x0a)
-CJ_OP(aaf, 0, 1, 0x3f)
+CJ_OP(nop, 1, CJ_VARIANT(0, {}, {1}, {{0x90}}))
+CJ_OP(ret, 1, CJ_VARIANT(0, {}, {1}, {{0xc3}}))
+//CJ_OP(aad, 1, CJ_VARIANT(1, {}, {2}, {{0xd5 C 0x0a}}))
 
 #define NARGS_SEQ(_1,_2,N,...) N
 #define NARGS(...) NARGS_SEQ(__VA_ARGS__, 2, 1)
@@ -82,15 +84,14 @@ CJ_OP(aaf, 0, 1, 0x3f)
     cj_emit(ctx, name, n, __VA_ARGS__);\
   }
 
-EMIT(inc, 1, op);
-EMIT(mov, 2, op1, op2);
-EMIT0(ret, 0);
-EMIT0(nop, 0);
+EMIT0(ret, 0)
+EMIT0(nop, 0)
 
 #undef EMIT
 #undef EMIT0
 #undef CJ_OP
 #undef CJ_OP_META
+#undef CJ_VARIANT
 #undef TYPIFY
 #undef APPLY
 #undef APPLY_1
@@ -99,3 +100,4 @@ EMIT0(nop, 0);
 #undef PRIMITIVE_CAT
 #undef NARGS
 #undef NARGS_SEQ
+#undef C

@@ -26,6 +26,7 @@ void destroy_cj_ctx(cj_ctx* ctx) {
 }
 
 cj_fn create_cj_fn(cj_ctx* ctx) {
+  if (!ctx->len) return NULL;
   void* mem = mmap(0, ctx->len, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   memcpy(mem, ctx->mem, ctx->len);

@@ -16,7 +16,7 @@ dev:
 	mkdir -p $(BUILDDIR)
 	$(CC) $(SOURCES) -o $(BUILDDIR)$(TARGET) $(CFLAGS) $(DEVFLAGS) $(SHARED)
 
-example: all
+example: dev
 	mkdir -p $(BUILDDIR)
 	$(CC) $(EXAMPLESRC) -o $(BUILDDIR)$(EXAMPLETARGET) $(CFLAGS) $(DEVFLAGS) -lcj -L$(BUILDDIR) -Isrc
 
