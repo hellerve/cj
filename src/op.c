@@ -7,8 +7,8 @@
 typedef struct {
   int ops_len;
   const char* operands[8];
-  int codes_len[8];
-  uint8_t codes[8][8];
+  uint8_t codes_len;
+  uint8_t codes[8];
 } cj_variant;
 
 typedef struct {
@@ -40,7 +40,7 @@ void cj_emit(cj_ctx* ctx, cj_instruction inst, uint64_t len, ...) {
   if (inst.variantc == 1) {
     cj_variant var = inst.variants[0];
     if (op_cmp(len, ops, var.ops_len, var.operands)) {
-      cj_add_bytes(ctx, var.codes[0], var.codes_len[0]);
+      cj_add_bytes(ctx, var.codes, var.codes_len);
       return;
     }
     // TODO: how to error
@@ -58,8 +58,8 @@ void cj_emit(cj_ctx* ctx, cj_instruction inst, uint64_t len, ...) {
                      .variants = {__VA_ARGS__}};
 
 // of course its not that simple
-CJ_OP(nop, 1, CJ_VARIANT(0, {}, {1}, {{0x90}}))
-CJ_OP(ret, 1, CJ_VARIANT(0, {}, {1}, {{0xc3}}))
+CJ_OP(nop, 1, CJ_VARIANT(0, {}, 1, {0x90}))
+CJ_OP(ret, 1, CJ_VARIANT(0, {}, 1, {0xc3}))
 //CJ_OP(aad, 1, CJ_VARIANT(1, {}, {2}, {{0xd5 C 0x0a}}))
 
 #define NARGS_SEQ(_1,_2,N,...) N
